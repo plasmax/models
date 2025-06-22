@@ -6,12 +6,11 @@ on:
 jobs:
   package-repo:
     runs-on: ubuntu-latest
-    container:
-      image: centos:7
     steps:
       - name: Install required tools
         run: |
-          yum install -y tar curl git make gcc zlib-devel bzip2 bzip2-devel readline-devel sqlite sqlite-devel openssl-devel
+          sudo apt-get update
+          sudo apt-get install -y tar curl git make gcc zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libssl-dev
           curl https://pyenv.run | bash
           export PATH="$HOME/.pyenv/bin:$PATH"
           eval "$(pyenv init -)"
@@ -38,10 +37,10 @@ jobs:
 
       - name: Create tarball
         run: |
-          tar --exclude='.git' -czvf repo-with-python.tar.gz . python-bin
+          tar --exclude='.git' -czvf videodepthanything.tar.gz . python-bin
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: repo-with-python
-          path: repo-with-python.tar.gz
+          name: videodepthanything
+          path: videodepthanything.tar.gz
