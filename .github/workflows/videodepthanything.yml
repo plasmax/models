@@ -1,9 +1,7 @@
-name: Package Repository as Tarball
+name: Video Depth Anything
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 jobs:
   package-repo:
