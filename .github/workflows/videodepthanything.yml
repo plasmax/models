@@ -7,11 +7,20 @@ jobs:
   package-repo:
     runs-on: ubuntu-latest
     steps:
-      - name: Install required tools
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y tar curl git make gcc zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev libssl-dev
+
+      - name: Set up Python with pyenv
+        run: |
           curl https://pyenv.run | bash
+          echo 'export PATH="$HOME/.pyenv/bin:$PATH"' >> $GITHUB_ENV
+          echo 'eval "$(pyenv init -)"' >> $GITHUB_ENV
+          echo 'eval "$(pyenv virtualenv-init -)"' >> $GITHUB_ENV
           export PATH="$HOME/.pyenv/bin:$PATH"
           eval "$(pyenv init -)"
           eval "$(pyenv virtualenv-init -)"
@@ -19,13 +28,7 @@ jobs:
           pyenv global 3.10.14
           python --version
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Remove .git directory
-        run: rm -rf .git
-
-      - name: Copy Python binary
+      - name: Prepare Python binary
         run: |
           export PATH="$HOME/.pyenv/bin:$PATH"
           eval "$(pyenv init -)"
@@ -35,22 +38,27 @@ jobs:
           cp $(pyenv which python) python-bin/
           echo "$PYVER" > python-bin/version.txt
 
-      - name: Clone DepthAnything/Video-Depth-Anything repo
-        run: |
-          git clone https://github.com/DepthAnything/Video-Depth-Anything.git
-          cd Video-Depth-Anything
+      - name: Clone Video-Depth-Anything
+        run: git clone https://github.com/DepthAnything/Video-Depth-Anything.git
 
       - name: Install Python requirements
         run: |
           export PATH="$HOME/.pyenv/bin:$PATH"
           eval "$(pyenv init -)"
           eval "$(pyenv virtualenv-init -)"
-          cd Video-Depth-Anything
-          pip install -r requirements.txt
+          pip install -r Video-Depth-Anything/requirements.txt
 
-      - name: Create tarball
+      - name: Copy files for packaging
         run: |
-          tar --exclude='.git' -czvf videodepthanything.tar.gz . python-bin
+          mkdir staging
+          cp -r python-bin staging/
+          cp -r Video-Depth-Anything staging/
+
+      - name: Create tarball (from static staging directory)
+        run: |
+          cd staging
+          tar -czvf ../videodepthanything.tar.gz .
+          cd ..
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
