@@ -35,6 +35,19 @@ jobs:
           cp $(pyenv which python) python-bin/
           echo "$PYVER" > python-bin/version.txt
 
+      - name: Clone DepthAnything/Video-Depth-Anything repo
+        run: |
+          git clone https://github.com/DepthAnything/Video-Depth-Anything.git
+          cd Video-Depth-Anything
+
+      - name: Install Python requirements
+        run: |
+          export PATH="$HOME/.pyenv/bin:$PATH"
+          eval "$(pyenv init -)"
+          eval "$(pyenv virtualenv-init -)"
+          cd Video-Depth-Anything
+          pip install -r requirements.txt
+
       - name: Create tarball
         run: |
           tar --exclude='.git' -czvf videodepthanything.tar.gz . python-bin
