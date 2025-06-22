@@ -1,0 +1,49 @@
+name: Package Repository as Tarball
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  package-repo:
+    runs-on: ubuntu-latest
+    container:
+      image: centos:7
+    steps:
+      - name: Install required tools
+        run: |
+          yum install -y tar curl git make gcc zlib-devel bzip2 bzip2-devel readline-devel sqlite sqlite-devel openssl-devel
+          curl https://pyenv.run | bash
+          export PATH="$HOME/.pyenv/bin:$PATH"
+          eval "$(pyenv init -)"
+          eval "$(pyenv virtualenv-init -)"
+          pyenv install 3.10.14
+          pyenv global 3.10.14
+          python --version
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Remove .git directory
+        run: rm -rf .git
+
+      - name: Copy Python binary
+        run: |
+          export PATH="$HOME/.pyenv/bin:$PATH"
+          eval "$(pyenv init -)"
+          eval "$(pyenv virtualenv-init -)"
+          PYVER=$(python --version | awk '{print $2}')
+          mkdir -p python-bin
+          cp $(pyenv which python) python-bin/
+          echo "$PYVER" > python-bin/version.txt
+
+      - name: Create tarball
+        run: |
+          tar --exclude='.git' -czvf repo-with-python.tar.gz . python-bin
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: repo-with-python
+          path: repo-with-python.tar.gz
