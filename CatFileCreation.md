@@ -706,6 +706,7 @@ class LinearColourTransfer(torch.nn.Module):
         self.linear = nn.Linear(3, 3)
 
     def forward(self, input):
+        # type: (Tensor) -> Tensor
         # input shape: [B, 3, H, W]
         B, C, H, W = input.shape
 
@@ -732,6 +733,7 @@ class ColourTransfer(torch.nn.Module):
         self.std = torch.tensor([0.229, 0.224, 0.225])
 
     def normalize(self, input):
+        # type: (Tensor) -> Tensor
         mean = self.mean.to(device=input.device, dtype=input.dtype)
         std = self.std.to(device=input.device, dtype=input.dtype)
         mean = mean.view(1, 3, 1, 1)
@@ -739,6 +741,7 @@ class ColourTransfer(torch.nn.Module):
         return (input - mean) / std
 
     def denormalize(self, input):
+        # type: (Tensor) -> Tensor
         mean = self.mean.to(device=input.device, dtype=input.dtype)
         std = self.std.to(device=input.device, dtype=input.dtype)
         mean = mean.view(1, 3, 1, 1)
@@ -746,6 +749,7 @@ class ColourTransfer(torch.nn.Module):
         return (input * std) + mean
 
     def forward(self, input):
+        # type: (Tensor) -> Tensor
         # Split combined input into two images
         input_split = torch.split(input, 3, 1)
         img1 = input_split[0]  # Source image
