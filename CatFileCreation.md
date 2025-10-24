@@ -696,56 +696,61 @@ This example shows a color transfer model that takes two images and transfers th
 
 **Model Code:**
 ```python
+from typing import Tuple
+
 import torch
 import torch.nn as nn
 
+
 class LinearColourTransfer(torch.nn.Module):
     """Core linear color transfer model."""
-    def __init__(self):
+
+    def __init__(self) -> None:
         super().__init__()
         self.linear = nn.Linear(3, 3)
 
-    def forward(self, input):
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         # input shape: [B, 3, H, W]
-        B, C, H, W = input.shape
+        batch, _, height, width = input.shape
 
         # Reshape for linear layer: [B*H*W, 3]
-        reshaped = input.permute(0, 2, 3, 1).reshape(-1, 3)
+        reshaped = input.permute(0, 2, 3, 1).reshape(batch * height * width, 3)
 
         # Apply linear transformation
         transformed = self.linear(reshaped)
 
         # Reshape back: [B, 3, H, W]
-        output = transformed.reshape(B, H, W, 3).permute(0, 3, 1, 2)
+        output = transformed.reshape(batch, height, width, 3).permute(0, 3, 1, 2)
 
         return output
 
+
 class ColourTransfer(torch.nn.Module):
     """Wrapper model with multiple inputs and mix control."""
-    def __init__(self, mixValue=1.0):
+
+    def __init__(self, mixValue: float = 1.0) -> None:
         super().__init__()
-        self.mixValue = mixValue
+        self.mixValue: float = mixValue
         self.colour_transfer = LinearColourTransfer()
 
-        # Normalization parameters
-        self.mean = torch.tensor([0.485, 0.456, 0.406])
-        self.std = torch.tensor([0.229, 0.224, 0.225])
+        # Normalization parameters registered as buffers for TorchScript compatibility
+        self.register_buffer("mean", torch.tensor([0.485, 0.456, 0.406]))
+        self.register_buffer("std", torch.tensor([0.229, 0.224, 0.225]))
 
-    def normalize(self, input):
-        mean = self.mean.to(device=input.device, dtype=input.dtype)
-        std = self.std.to(device=input.device, dtype=input.dtype)
-        mean = mean.view(1, 3, 1, 1)
-        std = std.view(1, 3, 1, 1)
+    def _match_stats(self, input: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        mean = self.mean.to(input.device).to(input.dtype).view(1, 3, 1, 1)
+        std = self.std.to(input.device).to(input.dtype).view(1, 3, 1, 1)
+        return mean, std
+
+    def normalize(self, input: torch.Tensor) -> torch.Tensor:
+        mean, std = self._match_stats(input)
         return (input - mean) / std
 
-    def denormalize(self, input):
-        mean = self.mean.to(device=input.device, dtype=input.dtype)
-        std = self.std.to(device=input.device, dtype=input.dtype)
-        mean = mean.view(1, 3, 1, 1)
-        std = std.view(1, 3, 1, 1)
+    def denormalize(self, input: torch.Tensor) -> torch.Tensor:
+        mean, std = self._match_stats(input)
         return (input * std) + mean
 
-    def forward(self, input):
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         # Split combined input into two images
         input_split = torch.split(input, 3, 1)
         img1 = input_split[0]  # Source image
@@ -759,24 +764,32 @@ class ColourTransfer(torch.nn.Module):
         img1_norm = self.normalize(img1)
         img2_norm = self.normalize(img2)
 
+        # Align first-order statistics between the two images
+        reduction_dims = [2, 3]
+        source_mean = torch.mean(img1_norm, dim=reduction_dims, keepdim=True)
+        target_mean = torch.mean(img2_norm, dim=reduction_dims, keepdim=True)
+        aligned = img1_norm - source_mean + target_mean
+
         # Apply color transfer to img1
-        transferred = self.colour_transfer(img1_norm)
+        transferred = self.colour_transfer(aligned)
 
         # Denormalize
         transferred = self.denormalize(transferred)
 
         # Mix between original and transferred based on mixValue
-        output = (1.0 - self.mixValue) * img1 + self.mixValue * transferred
+        mix_value: float = self.mixValue
+        output = (1.0 - mix_value) * img1 + mix_value * transferred
 
         # Clamp output
         output = torch.clamp(output, min=0.0, max=1.0)
 
         return output
 
+
 # Convert to TorchScript
 model = ColourTransfer()
 module = torch.jit.script(model)
-module.save('colour_transfer.pt')
+module.save("colour_transfer.pt")
 ```
 
 **Nuke Setup:**
