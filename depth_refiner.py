@@ -50,7 +50,10 @@ class DepthRefinementModule(nn.Module):
             residual = (refined - sparse) * mask
             # Avoid division by zero when the mask is empty.
             loss = residual.abs().sum() / (mask.sum() + 1e-6)
-            grads = torch.autograd.grad(loss, (scale, bias), allow_unused=True, retain_graph=False)
+            # torch.autograd.grad expects a sequence of outputs; wrapping ``loss``
+            # keeps TorchScript happy while still computing gradients for the two
+            # scalar parameters.
+            grads = torch.autograd.grad((loss,), (scale, bias), allow_unused=True, retain_graph=False)
 
             scale_grad = grads[0] if grads[0] is not None else torch.tensor(0.0, device=device, dtype=dtype)
             bias_grad = grads[1] if grads[1] is not None else torch.tensor(0.0, device=device, dtype=dtype)
