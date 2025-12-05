@@ -55,8 +55,11 @@ class DepthRefinementModule(nn.Module):
             # scalar parameters.
             grads = torch.autograd.grad((loss,), (scale, bias), allow_unused=True, retain_graph=False)
 
-            scale_grad = grads[0] if grads[0] is not None else torch.tensor(0.0, device=device, dtype=dtype)
-            bias_grad = grads[1] if grads[1] is not None else torch.tensor(0.0, device=device, dtype=dtype)
+            # TorchScript needs ``scale_grad``/``bias_grad`` to have a consistent
+            # tensor type (not Optional[Tensor]) for the scalar update math to
+            # compile cleanly.
+            scale_grad = grads[0] if grads[0] is not None else torch.zeros_like(scale)
+            bias_grad = grads[1] if grads[1] is not None else torch.zeros_like(bias)
 
             scale = scale - self.lr * scale_grad
             bias = bias - self.lr * bias_grad
