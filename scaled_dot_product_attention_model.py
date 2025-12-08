@@ -8,8 +8,13 @@ class ScaledDotProductAttentionModel(nn.Module):
     """Minimal model that exercises torch.nn.functional.scaled_dot_product_attention.
 
     The model expects a 4D input tensor with batch size 1 and channels-last layout:
-    ``(1, in_channels, height, width)``. The internal attention operates on flattened
-    spatial tokens using a single attention head.
+    ``(1, in_channels, height, width)``. By default the channels dimension is three
+    (RGB) so it can be wired directly to Nuke's rgba.{red,green,blue} channels. The
+    returned tensor preserves the same channel count and spatial dimensions as the
+    input, making it easy to roundtrip a 3-channel image through the attention block.
+
+    The internal attention operates on flattened spatial tokens using a single
+    attention head.
     """
 
     def __init__(self, in_channels: int = 3, hidden_dim: int = 8):
